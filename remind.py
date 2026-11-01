@@ -17,9 +17,15 @@ try:
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip().str.lower()
     
-    # Get the current time (formatted to match your sheet style, e.g., '2:00 PM')
-    now = datetime.datetime.now()
-    current_time_str = now.strftime("%I:%M %p").lstrip("0") # Strips leading zeros like 02:00 -> 2:00
+    # HEALING STEP: Get the current UTC time and convert it directly to Indian Standard Time (UTC + 5:30)
+    utc_now = datetime.datetime.utcnow()
+    ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+    
+    # Format to match your sheet style exactly (e.g., '4:00 PM')
+    current_time_str = ist_now.strftime("%I:%M %p").lstrip("0")
+    current_hour_str = ist_now.strftime("%I:00 %p").lstrip("0") # Fallback to round hour matching
+    
+    print(f"Server check matching for localized time: {current_time_str} or {current_hour_str}")
     
     for _, row in df.iterrows():
         task_time = str(row.get('time')).strip()
@@ -27,10 +33,11 @@ try:
         status = str(row.get('status')).strip().lower()
         hype = str(row.get('hype note')).strip()
         
-        # If the task matches the clock and is not done yet, send a phone alert
-        if task_time == current_time_str and status != "completed":
+        # Match either exact minutes or the standard hour slot block
+        if (task_time == current_time_str or task_time == current_hour_str) and status != "completed":
             reminder_msg = f"⏰ *COACH REMINDER:* \n🏋️‍♂️ Task: {task_name}\n⏳ This task needs to be completed right now!\n💬 Note: {hype}"
             send_alert(reminder_msg)
+            print("Alert successfully sent down to Telegram channel tray!")
             
 except Exception as e:
     print(f"Error checking routine schedule: {e}")
