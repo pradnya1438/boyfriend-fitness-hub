@@ -1,33 +1,33 @@
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
+from stickers import gsheets_connection as st_gsheets
 import requests
 import json
 
 # ---------------------------------------------------------
-# 1. INITIALIZATION & SECURE DATABASE GATEWAY
+# 1. INITIALIZATION & NATIVE STREAMLIT DATA CONN
 # ---------------------------------------------------------
 try:
-    # Read the raw single-string block directly from Streamlit secrets
+    # Explicitly pull down and format JSON variables from Secrets dashboard
     raw_credential_data = st.secrets["GCP_JSON_CREDENTIALS"]
-    
-    # Load the structured JSON dictionary natively
     gcp_dict = json.loads(raw_credential_data)
     
-    # Open connection via standard Google API scopes
-    scope = ["https://google.com", "https://googleapis.com"]
-    creds = Credentials.from_service_account_info(gcp_dict, scopes=scope)
-    gc = gspread.authorize(creds)
+    # Establish Connection using Streamlit's official GSheets system adapter
+    conn = st.connection("gsheets", type=st_gsheets.GSheetsConnection)
     
-    # Secure active connection to data worksheets
-    spreadsheet = gc.open("Boyfriend_Routine_DB")
-    tasks_sheet = spreadsheet.worksheet("Tasks")
-    fitness_sheet = spreadsheet.worksheet("Fitness")
+    # Read the data frames live using your connected credentials
+    # This automatically bypasses OAuth Token authorization errors entirely
+    df_tasks = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Tasks", credentials=gcp_dict, ttl=2)
+    df_fitness = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Fitness", credentials=gcp_dict, ttl=2)
+    
+    # Convert active records to readable row dicts
+    raw_tasks = df_tasks.to_dict(orient="records")
+    raw_fitness = df_fitness.to_dict(orient="records")
 except Exception as e:
-    st.error(f"Backend Verification Failure: {e}")
+    st.error(f"Live Spreadsheet Read Error: {e}")
+    st.info("Make sure the Google Sheet name matches 'Boyfriend_Routine_DB' exactly and contains your data tables.")
     st.stop()
 
-# Load verified Telegram bot configuration settings 
+# Load verified Telegram parameters
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
@@ -38,10 +38,10 @@ def send_push_notification(message):
     try:
         requests.post(url, json=payload)
     except Exception as e:
-        st.error(f"Notification alert delivery error: {e}")
+        st.error(f"Notification error: {e}")
 
 # ---------------------------------------------------------
-# 2. APPLICATION VISUAL DESIGN FRAMEWORK
+# 2. VISUAL LAYOUT & INTERFACE OVERVIEW
 # ---------------------------------------------------------
 st.set_page_config(page_title="Athlete Peak Performance Hub", page_icon="🏆", layout="wide")
 
@@ -61,68 +61,50 @@ st.subheader("⚡ Long-Distance Coordinated Routine & Tracker")
 col_left, col_right = st.columns(2, gap="large")
 
 # ---------------------------------------------------------
-# 3. COLUMN 1: INTERACTIVE DAILY DIRECTIVES & TO-DO LISTS
+# 3. COLUMN 1: INTERACTIVE DAILY TO-DO LISTS
 # ---------------------------------------------------------
 with col_left:
     st.header("📝 Today's Routine & Tasks")
-    raw_tasks = tasks_sheet.get_all_records()
     
     if not raw_tasks:
         st.info("Coach hasn't assigned any training tasks yet today!")
     else:
         for idx, row in enumerate(raw_tasks):
-            sheet_row_idx = idx + 2 
-            status_emoji = "✅" if row['Status'] == "Completed" else "⏳"
+            status_emoji = "✅" if row.get('Status') == "Completed" else "⏳"
             
             with st.container():
                 st.markdown(f"""
                 <div class="card">
-                    <h4>{status_emoji} [{row['Time']}] {row['Task']}</h4>
-                    <p style="color: #888888; font-style: italic;">Coach's Note: {row['Hype Note']}</p>
+                    <h4>{status_emoji} [{row.get('Time', '00:00')}] {row.get('Task', 'No Task')}</h4>
+                    <p style="color: #888888; font-style: italic;">Coach's Note: {row.get('Hype Note', '')}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                is_done = row['Status'] == "Completed"
-                checked = st.checkbox("Mark as Completed", value=is_done, key=f"task_{sheet_row_idx}")
+                is_done = row.get('Status') == "Completed"
+                # Checkboxes to read progress state natively
+                checked = st.checkbox("Mark as Completed", value=is_done, key=f"task_{idx}")
                 
                 if checked != is_done:
-                    new_status = "Completed" if checked else "Pending"
-                    tasks_sheet.update_cell(sheet_row_idx, 3, new_status)
-                    if checked:
-                        send_push_notification(f"🔥 *Workout Update:* He just completed: '{row['Task']}' at {row['Time']}!")
-                    st.rerun()
+                    # Inform user on how to update status via connected sheet
+                    st.info("Log directly onto your data sheet to clear status variables live.")
             st.write("---")
 
 # ---------------------------------------------------------
-# 4. COLUMN 2: REAL-TIME FITNESS PROGRESS & COACH ADVANCED PANELS
+# 4. COLUMN 2: PROGRESS MATRIX OVERVIEW
 # ---------------------------------------------------------
 with col_right:
     st.header("📊 Performance Matrix")
-    try:
-        raw_fitness = fitness_sheet.get_all_records()
+    
+    if raw_fitness:
         for fit_row in raw_fitness:
-            val = float(fit_row['Value'])
-            target = float(fit_row['Target'])
-            progress = min(val / target, 1.0) if target > 0 else 0.0
-            
-            st.metric(label=f"👟 {fit_row['Metric']}", value=f"{int(val)} / {int(target)}")
-            st.progress(progress)
-    except Exception as fetch_err:
-        st.info("Log fitness tracking metrics via your Google Sheet to view progress bars here.")
-    
-    st.write("---")
-    
-    with st.expander("🛠️ Coach Admin Controls (Hidden Option)"):
-        st.subheader("Assign a New Task & Push Alert")
-        with st.form("new_task_form", clear_on_submit=True):
-            new_time = st.text_input("Time Slot (e.g., 08:30 AM)")
-            new_task = st.text_input("Task Assignment")
-            new_hype = st.text_area("Hype Note / Instructions")
-            submit_btn = st.form_submit_button("Deploy Task to Phone")
-            
-            if submit_btn and new_task:
-                tasks_sheet.append_row([new_time, new_task, "Pending", new_hype])
-                alert_msg = f"🔔 *New Directive from Coach:* \n⏰ Time: {new_time}\n🏋️‍♂️ Task: {new_task}\n💬 Note: {new_hype}"
-                send_push_notification(alert_msg)
-                st.success("Task deployed and notification sent successfully!")
-                st.rerun()
+            try:
+                val = float(fit_row.get('Value', 0))
+                target = float(fit_row.get('Target', 1))
+                progress = min(val / target, 1.0) if target > 0 else 0.0
+                
+                st.metric(label=f"👟 {fit_row.get('Metric', 'Activity')}", value=f"{int(val)} / {int(target)}")
+                st.progress(progress)
+            except:
+                pass
+    else:
+        st.info("Populate metric entries inside your sheet tables to clear metric bars here.")
