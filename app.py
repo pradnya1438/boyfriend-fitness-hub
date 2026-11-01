@@ -1,36 +1,37 @@
 import streamlit as st
 import pandas as pd
 import requests
-import json
 
 # ---------------------------------------------------------
-# 1. INITIALIZATION & REPAIR ENGINE FOR SERVICE ACCOUNTS
+# 1. LINK YOUR PERSONAL GOOGLE SHEET DATABASE HERE
 # ---------------------------------------------------------
+# Embedded with your verified Sheet ID securely
+SHEET_ID = "1Cweyn2B7L5ZVbtgE0crA0JQ8O_qRjbkiZ55wXa1Xn4A"
+
 try:
-    # Safely load the JSON credentials string block from Secrets dashboard
-    raw_credential_data = st.secrets["GCP_JSON_CREDENTIALS"]
-    gcp_dict = json.loads(raw_credential_data)
+    # Build clean CSV export links for both tabs using your Sheet ID
+    tasks_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tasks"
+    fitness_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Fitness"
     
-    # We bypass complex connection modules by directly accessing the spreadsheet's open export endpoint.
-    # To keep your setup completely secure and operational without extra setup steps,
-    # we convert your service account parameters directly into an authenticated layout fetch link.
-    spreadsheet_name = "Boyfriend_Routine_DB"
+    # Read the live rows using pandas data pipelines
+    df_tasks = pd.read_csv(tasks_url)
     
-    # Public URL structure fallback endpoint for standard reading matrices
-    # Enter your spreadsheet public link structure if customized, or use our streamlined reader
-    sheet_base_url = "https://google.com"
+    # Try reading fitness rows, fallback to empty if tab is still blank
+    try:
+        df_fitness = pd.read_csv(fitness_url)
+        df_fitness.columns = df_fitness.columns.str.strip().str.lower()
+        raw_fitness = df_fitness.to_dict(orient="records")
+    except:
+        raw_fitness = []
     
-    # Fetch Data Frames cleanly using native pandas csv pipeline engines
-    df_tasks = pd.read_csv(f"https://google.com")
-    df_fitness = pd.read_csv(f"https://google.com")
+    # Clean and force column headers to be lowercase to avoid typos
+    df_tasks.columns = df_tasks.columns.str.strip().str.lower()
     
-    # Convert active data layout tables to row dicts natively
+    # Convert active tables to dictionary arrays
     raw_tasks = df_tasks.to_dict(orient="records")
-    raw_fitness = df_fitness.to_dict(orient="records")
 except Exception as e:
-    # If the direct engine encounters structural access loops, we guide you gracefully
     st.error(f"Live Spreadsheet Read Error: {e}")
-    st.info("💡 To allow our script to query your rows without token loops, open your 'Boyfriend_Routine_DB' Google Sheet, click the Share button, change General Access from 'Restricted' to 'Anyone with the link can view', and save!")
+    st.info("💡 Make sure you clicked the green 'Share' button in your Google Sheet, changed General Access to 'Anyone with the link can view', and saved it!")
     st.stop()
 
 # Load verified Telegram parameters
@@ -72,25 +73,35 @@ col_left, col_right = st.columns(2, gap="large")
 with col_left:
     st.header("📝 Today's Routine & Tasks")
     
-    if not raw_tasks:
+    if not raw_tasks or pd.isna(raw_tasks[0].get('task')):
         st.info("Coach hasn't assigned any training tasks yet today!")
     else:
         for idx, row in enumerate(raw_tasks):
-            status_emoji = "✅" if row.get('Status') == "Completed" else "⏳"
+            # Read columns dynamically by matching lowercase strings safely
+            time_val = str(row.get('time') or '00:00')
+            task_val = str(row.get('task') or 'No Task Assigned')
+            status_val = str(row.get('status') or 'Pending')
+            hype_val = str(row.get('hype note') or '')
+            
+            # Skip empty rows gracefully if any
+            if task_val == 'nan' or time_val == 'nan':
+                continue
+                
+            status_emoji = "✅" if status_val.strip().lower() == "completed" else "⏳"
             
             with st.container():
                 st.markdown(f"""
                 <div class="card">
-                    <h4>{status_emoji} [{row.get('Time', '00:00')}] {row.get('Task', 'No Task')}</h4>
-                    <p style="color: #888888; font-style: italic;">Coach's Note: {row.get('Hype Note', '')}</p>
+                    <h4>{status_emoji} [{time_val}] {task_val}</h4>
+                    <p style="color: #888888; font-style: italic;">Coach's Note: {hype_val}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                is_done = row.get('Status') == "Completed"
+                is_done = status_val.strip().lower() == "completed"
                 checked = st.checkbox("Mark as Completed", value=is_done, key=f"task_{idx}")
                 
                 if checked != is_done:
-                    st.info("Log directly onto your data sheet to clear status variables live.")
+                    st.info("✏️ Update the 'Status' column to 'Completed' inside your Google Sheet to finish this task live!")
             st.write("---")
 
 # ---------------------------------------------------------
@@ -99,16 +110,21 @@ with col_left:
 with col_right:
     st.header("📊 Performance Matrix")
     
-    if raw_fitness:
+    if not raw_fitness or pd.isna(raw_fitness[0].get('metric')):
+        st.info("Populate metric entries inside your 'Fitness' sheet tab to view progress bars here.")
+    else:
         for fit_row in raw_fitness:
             try:
-                val = float(fit_row.get('Value', 0))
-                target = float(fit_row.get('Target', 1))
+                metric_name = str(fit_row.get('metric') or 'Activity Log')
+                val = float(fit_row.get('value', 0))
+                target = float(fit_row.get('target', 1))
+                
+                if metric_name == 'nan':
+                    continue
+                    
                 progress = min(val / target, 1.0) if target > 0 else 0.0
                 
-                st.metric(label=f"👟 {fit_row.get('Metric', 'Activity')}", value=f"{int(val)} / {int(target)}")
+                st.metric(label=f"👟 {metric_name}", value=f"{int(val)} / {int(target)}")
                 st.progress(progress)
             except:
                 pass
-    else:
-        st.info("Populate metric entries inside your sheet tables to clear metric bars here.")
