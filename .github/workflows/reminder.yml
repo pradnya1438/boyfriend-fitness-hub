@@ -23,4 +23,5 @@ jobs:
           pip install pandas requests
 
       - name: Run Reminder System
-        run: python remind.py
+        run: python remind_v2.py
+
