@@ -1,21 +1,14 @@
 import requests
 
 def send_alert():
-    # Tailored layout message delivered directly to lock screens
-    reminder_msg = (
-        "⏰ *COACH REMINDER:* \n"
-        "🏋️‍♂️ Task: Walk\n"
-        "⏳ This task needs to be completed right now!\n"
-        "💬 Note: Call me during your walk"
-    )
+    # Plain text layout with zero special formatting characters to bypass filters
+    reminder_msg = "COACH REMINDER: Task: Walk. This task needs to be completed right now! Note: Call me during your walk."
     
-    # Complete, raw, hardcoded destination URL path with no variables to eliminate string parsing bugs
     url = "https://telegram.org"
     
     payload = {
         "chat_id": "1367309270",
-        "text": reminder_msg,
-        "parse_mode": "Markdown"
+        "text": reminder_msg
     }
     
     try:
