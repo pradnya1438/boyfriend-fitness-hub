@@ -1,5 +1,5 @@
 import streamlit as st
-from stickers import gsheets_connection as st_gsheets
+from streamlit_gsheets import GSheetsConnection
 import requests
 import json
 
@@ -12,7 +12,7 @@ try:
     gcp_dict = json.loads(raw_credential_data)
     
     # Establish Connection using Streamlit's official GSheets system adapter
-    conn = st.connection("gsheets", type=st_gsheets.GSheetsConnection)
+    conn = st.connection("gsheets", type=GSheetsConnection)
     
     # Read the data frames live using your connected credentials
     # This automatically bypasses OAuth Token authorization errors entirely
@@ -85,7 +85,6 @@ with col_left:
                 checked = st.checkbox("Mark as Completed", value=is_done, key=f"task_{idx}")
                 
                 if checked != is_done:
-                    # Inform user on how to update status via connected sheet
                     st.info("Log directly onto your data sheet to clear status variables live.")
             st.write("---")
 
