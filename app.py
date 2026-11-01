@@ -11,13 +11,12 @@ try:
     raw_credential_data = st.secrets["GCP_JSON_CREDENTIALS"]
     gcp_dict = json.loads(raw_credential_data)
     
-    # Establish Connection using Streamlit's official GSheets system adapter
-    conn = st.connection("gsheets", type=GSheetsConnection)
+    # Establish Connection and pass the credentials dictionary directly here
+    conn = st.connection("gsheets", type=GSheetsConnection, credentials=gcp_dict)
     
-    # Read the data frames live using your connected credentials
-    # This automatically bypasses OAuth Token authorization errors entirely
-    df_tasks = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Tasks", credentials=gcp_dict, ttl=2)
-    df_fitness = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Fitness", credentials=gcp_dict, ttl=2)
+    # Read the data frames live from your worksheets
+    df_tasks = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Tasks", ttl=2)
+    df_fitness = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Fitness", ttl=2)
     
     # Convert active records to readable row dicts
     raw_tasks = df_tasks.to_dict(orient="records")
@@ -81,7 +80,6 @@ with col_left:
                 """, unsafe_allow_html=True)
                 
                 is_done = row.get('Status') == "Completed"
-                # Checkboxes to read progress state natively
                 checked = st.checkbox("Mark as Completed", value=is_done, key=f"task_{idx}")
                 
                 if checked != is_done:
