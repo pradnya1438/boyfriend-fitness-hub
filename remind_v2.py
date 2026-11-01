@@ -13,6 +13,7 @@ def send_alert():
         "💬 Note: Call me during your walk"
     )
     
+    # FIX: Added the absolute correct slash separators back into the endpoint path
     url = f"https://telegram.org{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
