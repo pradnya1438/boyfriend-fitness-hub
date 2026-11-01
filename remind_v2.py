@@ -1,9 +1,5 @@
 import requests
 
-# Direct system configuration parameters
-TELEGRAM_BOT_TOKEN = "9235933487:AAGA-b3aAqS8YxfjG2c7GSaJyQNXmXZOWO8"
-TELEGRAM_CHAT_ID = "1367309270"
-
 def send_alert():
     # Tailored layout message delivered directly to lock screens
     reminder_msg = (
@@ -13,10 +9,11 @@ def send_alert():
         "💬 Note: Call me during your walk"
     )
     
-    # FIX: Added the absolute correct slash separators back into the endpoint path
-    url = f"https://telegram.org{TELEGRAM_BOT_TOKEN}/sendMessage"
+    # Complete, raw, hardcoded destination URL path with no variables to eliminate string parsing bugs
+    url = "https://telegram.org"
+    
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": "1367309270",
         "text": reminder_msg,
         "parse_mode": "Markdown"
     }
