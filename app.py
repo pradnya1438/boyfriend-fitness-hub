@@ -5,38 +5,29 @@ import requests
 import json
 
 # ---------------------------------------------------------
-# 1. LIVE REPAIR ENGINE FOR GOOGLE PRIVATE KEYS
+# 1. INITIALIZATION & SECURE DATABASE GATEWAY
 # ---------------------------------------------------------
 try:
-    # Safely load the credentials string from secrets
-    raw_gcp_json = st.secrets["GCP_JSON_CREDENTIALS"]
+    # Read the raw single-string block directly from Streamlit secrets
+    raw_credential_data = st.secrets["GCP_JSON_CREDENTIALS"]
     
-    # Self-healing string operations to fix any pasted formatting or newline bugs
-    repaired_json_string = raw_gcp_json.replace("\\n", "\n").replace("\n", "\\n")
-    # Clean standard header anchors back to literal format
-    repaired_json_string = repaired_json_string.replace("-----BEGIN\\nPRIVATE\\nKEY-----", "-----BEGIN PRIVATE KEY-----\\n")
-    repaired_json_string = repaired_json_string.replace("\\n-----END\\nPRIVATE\\nKEY-----", "\\n-----END PRIVATE KEY-----")
+    # Load the structured JSON dictionary natively
+    gcp_dict = json.loads(raw_credential_data)
     
-    # Parse the cleaned string into an active credential dict
-    gcp_info = json.loads(raw_gcp_json)
-    
-    # Hot-fix the exact inner private key payload to make it readable by google auth
-    if "private_key" in gcp_info:
-        gcp_info["private_key"] = gcp_info["private_key"].replace("\\n", "\n")
-        
+    # Open connection via standard Google API scopes
     scope = ["https://google.com", "https://googleapis.com"]
-    creds = Credentials.from_service_account_info(gcp_info, scopes=scope)
+    creds = Credentials.from_service_account_info(gcp_dict, scopes=scope)
     gc = gspread.authorize(creds)
     
-    # Open Google Sheets sheets database
+    # Secure active connection to data worksheets
     spreadsheet = gc.open("Boyfriend_Routine_DB")
     tasks_sheet = spreadsheet.worksheet("Tasks")
     fitness_sheet = spreadsheet.worksheet("Fitness")
 except Exception as e:
-    st.error(f"Configuration Initialization Error: {e}")
+    st.error(f"Backend Verification Failure: {e}")
     st.stop()
 
-# Load Telegram parameters safely
+# Load verified Telegram bot configuration settings 
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
@@ -50,7 +41,7 @@ def send_push_notification(message):
         st.error(f"Notification alert delivery error: {e}")
 
 # ---------------------------------------------------------
-# 2. ATHLETE COHESIVE INTERFACE LAYOUT
+# 2. APPLICATION VISUAL DESIGN FRAMEWORK
 # ---------------------------------------------------------
 st.set_page_config(page_title="Athlete Peak Performance Hub", page_icon="🏆", layout="wide")
 
@@ -70,7 +61,7 @@ st.subheader("⚡ Long-Distance Coordinated Routine & Tracker")
 col_left, col_right = st.columns(2, gap="large")
 
 # ---------------------------------------------------------
-# 3. COLUMN 1: LIVE INTERACTIVE DIRECTIVES & TO-DO LISTS
+# 3. COLUMN 1: INTERACTIVE DAILY DIRECTIVES & TO-DO LISTS
 # ---------------------------------------------------------
 with col_left:
     st.header("📝 Today's Routine & Tasks")
@@ -103,7 +94,7 @@ with col_left:
             st.write("---")
 
 # ---------------------------------------------------------
-# 4. COLUMN 2: REAL-TIME METRICS & HIDDEN COACH CONSOLE
+# 4. COLUMN 2: REAL-TIME FITNESS PROGRESS & COACH ADVANCED PANELS
 # ---------------------------------------------------------
 with col_right:
     st.header("📊 Performance Matrix")
@@ -117,7 +108,7 @@ with col_right:
             st.metric(label=f"👟 {fit_row['Metric']}", value=f"{int(val)} / {int(target)}")
             st.progress(progress)
     except Exception as fetch_err:
-        st.info("Log fitness tracking metrics via your Google Sheet to view charts here.")
+        st.info("Log fitness tracking metrics via your Google Sheet to view progress bars here.")
     
     st.write("---")
     
