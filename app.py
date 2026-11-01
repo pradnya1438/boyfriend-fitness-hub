@@ -11,12 +11,12 @@ try:
     raw_credential_data = st.secrets["GCP_JSON_CREDENTIALS"]
     gcp_dict = json.loads(raw_credential_data)
     
-    # Establish Connection and pass the credentials dictionary directly here
-    conn = st.connection("gsheets", type=GSheetsConnection, credentials=gcp_dict)
+    # Establish Connection using Streamlit's official GSheets system adapter
+    conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Read the data frames live from your worksheets
-    df_tasks = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Tasks", ttl=2)
-    df_fitness = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Fitness", ttl=2)
+    # Read the data frames live from your worksheets using the service_account keyword parameter
+    df_tasks = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Tasks", service_account=gcp_dict, ttl=2)
+    df_fitness = conn.read(spreadsheet="Boyfriend_Routine_DB", worksheet="Fitness", service_account=gcp_dict, ttl=2)
     
     # Convert active records to readable row dicts
     raw_tasks = df_tasks.to_dict(orient="records")
